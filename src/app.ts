@@ -1,114 +1,138 @@
 interface Task {
-    id: number;
+    id: string;
     title: string;
     description: string;
-    status: 'pending' | 'completed';
-    deadline: Date;
-    userId: string;
+    completed: boolean;
+    deadline: string;
 }
 
-class User {
-    constructor(public username: string) {}
+class TaskService {
+    private storageKey = 'tasks';
+
+    getTasks(): Task[] {
+        return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+    }
+
+    addTask(task: Task): void {
+        const tasks = this.getTasks();
+        tasks.push(task);
+        localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+    }
+
+    deleteTask(taskId: string): void {
+        const tasks = this.getTasks().filter(task => task.id !== taskId);
+        localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+    }
+
+    toggleTaskCompletion(taskId: string): void {
+        const tasks = this.getTasks();
+        const task = tasks.find(task => task.id === taskId);
+        if (task) {
+            task.completed = !task.completed; // Toggle the completed status
+            localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+        }
+    }
 }
 
-class TodoApp {
-    private tasks: Task[] = [];
-    private currentUser:  User | null = null;
-    private taskIdCounter: number = 0;
+const taskService = new TaskService();
 
-    constructor() {
-        this.init();
+const addTaskButton = document.getElementById('add-task') as HTMLButtonElement;
+const taskList = document.getElementById('task-list') as HTMLUListElement;
+const errorMessage = document.getElementById('error-message') as HTMLDivElement; // Assuming you have a div for error messages
+const completedTaskList = document.getElementById('completed-task-list') as HTMLUListElement; // Assuming you have a UL for completed tasks
+
+addTaskButton.addEventListener('click', () => {
+    const titleInput = document.getElementById('task-title') as HTMLInputElement;
+    const descriptionInput = document.getElementById('task-description') as HTMLTextAreaElement;
+    const deadlineInput = document.getElementById('task-deadline') as HTMLInputElement;
+
+    // Clear previous error message
+    errorMessage.textContent = '';
+
+    // Validate title and description
+    if (!titleInput.value.trim()) {
+        errorMessage.textContent = 'Title is required.';
+        return;
     }
 
-    private init() {
-        document.getElementById('signup')!.addEventListener('click', () => this.signup());
-        document.getElementById('login')!.addEventListener('click', () => this.login());
-        document.getElementById('add-task')!.addEventListener('click', () => this.addTask());
+    if (!descriptionInput.value.trim()) {
+        errorMessage.textContent = 'Description is required.';
+        return;
     }
 
-    private signup() {
-        const usernameInput = document.getElementById('username') as HTMLInputElement;
-        const username = usernameInput.value.trim();
-        if (username) {
-            this.currentUser  = new User(username);
-            this.showTaskForm();
-        }
+    if (!deadlineInput.value.trim()) {
+        errorMessage.textContent = 'Deadline is required.';
+        return;
     }
 
-    private login() {
-        const usernameInput = document.getElementById('username') as HTMLInputElement;
-        const username = usernameInput.value.trim();
-        if (username) {
-            this.currentUser  = new User(username);
-            this.showTaskForm();
-        }
-    }
+    const task: Task = {
+        id: new Date().toISOString(),
+        title: titleInput.value,
+        description: descriptionInput.value,
+        completed: false, // Initialize completed status to false
+        deadline: deadlineInput.value
+    };
 
-    private showTaskForm() {
-        document.getElementById('auth')!.style.display = 'none';
-        document.getElementById('task-form')!.style.display = 'block';
-        this.renderTasks();
-    }
+    // Add the task to the TaskService
+    taskService.addTask(task);
 
-    private addTask() {
-        const titleInput = document.getElementById('task-title') as HTMLInputElement;
-        const descriptionInput = document.getElementById('task-description') as HTMLTextAreaElement;
-        const deadlineInput = document.getElementById('task-deadline') as HTMLInputElement;
+    // Clear the input fields
+    titleInput.value = '';
+    descriptionInput.value = '';
+    deadlineInput.value = '';
 
-        const title = titleInput.value.trim();
-        const description = descriptionInput.value.trim();
-        const deadline = new Date(deadlineInput.value);
+    // Refresh the task list
+    displayTasks();
+});
 
-        if (title && description && !isNaN(deadline.getTime())) {
-            const newTask: Task = {
-                id: this.taskIdCounter++,
-                title,
-                description,
-                status: 'pending',
-                deadline,
-                userId: this.currentUser !.username
-            };
-            this.tasks.push(newTask);
-            this.renderTasks();
-            titleInput.value = '';
-            descriptionInput.value = '';
-            deadlineInput.value = '';
-        }
-    }
+// Function to display tasks
+function displayTasks(): void {
+    // Clear the current task list
+    taskList.innerHTML = '';
 
-    private renderTasks() {
-        const taskList = document.getElementById('task-list')!;
-        taskList.innerHTML = ''; // Réinitialisez la liste des tâches
-    
-        this.tasks.forEach(task => {
-            const taskElement = document.createElement('div');
-            taskElement.className = 'task';
-            taskElement.innerHTML = `
-                <h3>${task.title} <small>(Deadline: ${task.deadline.toLocaleDateString()})</small></h3>
-                <p>${task.description}</p>
-                <p>Status: ${task.status}</p>
-                <button onclick="app.validateTask(${task.id})">Valider</button>
-                ${task.status === 'pending' ? `<button onclick="app.deleteTask(${task.id})">Supprimer</button>` : ''}
-            `;
-            taskList.appendChild(taskElement); // Ajoutez l'élément de tâche à la liste
+    // Get tasks from the TaskService
+    const tasks = taskService.getTasks();
+
+    // Render each task
+    tasks.forEach(task => {
+        const listItem = document.createElement('li');
+
+        // Update the textContent to include the title and description
+        listItem.textContent = `${task.title} - ${task.description} - Deadline: ${task.deadline}`;
+
+        // Create a checkbox to mark the task as complete
+        const completeCheckbox = document.createElement('input');
+        completeCheckbox.type = 'checkbox';
+        completeCheckbox.checked = task.completed; // Set checkbox state based on task completion
+        completeCheckbox.addEventListener('change', () => {
+            taskService.toggleTaskCompletion(task.id);
+            displayTasks(); // Refresh the task list to reflect changes
         });
-    }
 
-    public validateTask(taskId: number) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (task && task.status === 'pending') {
-            task.status = 'completed';
-            this.renderTasks();
-        }
-    }
+        // Append the checkbox to the list item
+        listItem.appendChild(completeCheckbox);
 
-    public deleteTask(taskId: number) {
-        const taskIndex = this.tasks.findIndex(t => t.id === taskId);
-        if (taskIndex !== -1 && this.tasks[taskIndex].status === 'pending') {
-            this.tasks.splice(taskIndex, 1);
-            this.renderTasks();
+        // Create a delete button
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', () => {
+            taskService.deleteTask(task.id);
+            displayTasks();
+        });
+
+
+        // Append the delete button to the list item
+        listItem.appendChild(deleteButton);
+
+
+
+        if (task.completed) {
+            completedTaskList.appendChild(listItem);
+        } else {
+        taskList.appendChild(listItem); // Append the list item to the task list
         }
-    }
+    });
 }
 
-const app = new TodoApp();
+// Display tasks on initial load
+displayTasks();

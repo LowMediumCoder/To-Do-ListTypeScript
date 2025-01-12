@@ -8,15 +8,23 @@
 </head>
 <body>
     <div class="container">
-        <h1>To-Do List</h1>
-        <form id="task-form">
-            <input type="text" id="title" placeholder="Titre" required>
-            <textarea id="description" placeholder="Description"></textarea>
-            <input type="date" id="deadline" required>
-            <button type="submit">Ajouter Tâche</button>
-        </form>
+        <h1>My To-Do List</h1>
+       
+        <div class="task-form">
+            <input type="text" id="task-title" placeholder="Task Title" required aria-label="Titre de la tâche">
+            <textarea id="task-description" placeholder="Task Description" required aria-label="Description de la tâche"></textarea>
+            <input type="date" id="task-deadline" required aria-label="Deadline de la tâche"> <!-- Deadline input -->
+            <button id="add-task" type="button">Ajouter Tâche</button>
+        </div>
+
+        <div id="error-message" style="color: red; font-weight: bold;"></div> <!-- Error message display -->
+
+        <h2>Active Tasks</h2>
         <ul id="task-list"></ul>
+
+        <h2>Completed Tasks</h2>
+        <ul id="completed-task-list"></ul>
     </div>
-    <script src="app.js"></script>
+    <script src="lib/app.js"></script>
 </body>
 </html>
